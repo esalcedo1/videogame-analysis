@@ -1,0 +1,601 @@
+---
+name : Ethan Salcedo
+title: "Project 4 : Linear Regression"
+output: html_notebook
+date : May 15, 2020
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+Load necessary packages
+library(sjPlot) # to create a PQ two-way table
+library(gridExtra)
+library(scales)
+
+```{r}
+library(ggplotify)
+library(grid)
+library(flextable)
+library(gridExtra)
+library(tidyverse)
+library(car)
+library(olsrr)
+library(scales)
+library(ggplot2)
+library(tidyverse)
+library(magrittr)
+library(stargazer)
+library(webshot)
+library(DescTools) # contains levene's test function
+library(broom) # to tidy model output
+library(kableExtra) # for PQ format
+library(gt) # alternative option for PQ format
+library(pwr) # power analysis
+library(ggpubr) # contains line/dot plot for visualizing means
+```
+
+Load data into the notebook
+```{r}
+games <- read.csv("vgame_sales.csv")
+summary(games)
+```
+
+Clean the data and filter the categorical factors into 5 levels
+```{r}
+
+#Lump Publishers into 5 groups using factor lumping
+games$Publisher <- fct_explicit_na(games$Publisher) 
+games$Publisher <- fct_lump(games$Publisher, n = 5)
+
+#Lump Genres into the top 5 groups using factor lumping 
+games$Genre <- fct_explicit_na(games$Genre)
+games$Genre <- fct_lump(games$Genre, n = 4)
+
+#Fix the Rating variable
+levels(games$Rating)[1] <- "DK/REF"
+games$Rating <- recode_factor(games$Rating, "DK/REF"=NA_character_)
+games$Rating <- recode_factor(games$Rating, "RP"=NA_character_)
+games$Rating <- fct_collapse(games$Rating,
+                              E = c("E", "E10+", "EC", "K-A"),
+                              M = c("M","AO"))
+games$Rating <- fct_relevel(games$Rating, "E","T","M")
+games <- games[!is.na(games$Rating),]
+
+#Get rid of the "Other" categories
+gamesub <- games %>% filter(Publisher != "Other") %>% filter(Genre != "Other") %>% filter(Developer != "Other") %>% filter(Global_Sales < 2.0)
+gamesub$Genre <- droplevels(gamesub$Genre)
+gamesub$Publisher <- droplevels(gamesub$Publisher)
+gamesub$Rating <- droplevels(gamesub$Rating)
+gamesub$User_Score <- droplevels(gamesub$User_Score)
+
+table(gamesub$Genre)
+table(gamesub$Publisher)
+table(gamesub$Rating)
+table(gamesub$Critic_Score)
+```
+
+CHOSEN VARIABLES
+NUMERICAL OUTCOME: Global Sales 
+PREDICTORS: Publisher, Critic Score, Genre, Rating
+RATIONALE : All of these variables theoretically affect mass perception of the game. Publisher controls the marketing, critic scores can give people opinions before they buy the game, genre can also give them preconceived notions. Rating can limit the number of people who can buy your game
+
+PRE-MODEL FITTING
+```{r}
+#PQ Univariate Table of all variables
+pub_df <- gamesub %>%
+  group_by(Publisher) %>%
+  summarize(Frequency = n(), Percent = paste(format(round(n()/nrow(gamesub)*100,1)),"%"))
+names(pub_df)[1] <- "Category"
+
+gen_df <- gamesub %>%
+  group_by(Genre) %>%
+  summarize(Frequency = n(), Percent = paste(format(round(n()/nrow(gamesub)*100,1)),"%"))
+names(gen_df)[1] <- "Category"
+
+rat_df <- gamesub %>%
+  group_by(Rating) %>%
+  summarize(Frequency = n(), Percent = paste(format(round(n()/nrow(gamesub)*100,1)),"%"))
+names(rat_df)[1] <- "Category"
+
+df_cat <- rbind(pub_df, gen_df, rat_df)
+
+tname <- "Univariate Statistics for Categorical Variables"
+titlehead  <- c(tname = 3)
+names(titlehead) <- tname
+
+unicat <- df_cat %>% kable(booktabs = T, align = "lcc") %>%
+  kable_styling(full_width = FALSE) %>%
+  pack_rows("Publisher", 1,5) %>%
+  pack_rows("Genre", 6,9) %>%
+  pack_rows("Rating", 10, 12) %>%
+  add_header_above(header = titlehead, align = "l",
+                   extra_css = "border-top: solid; border-bottom: double;") %>%
+  row_spec(0, extra_css = "border-bottom : solid;") %>%
+  row_spec(nrow(df_cat), extra_css = "border-bottom: solid;")
+
+unicat
+save_kable(unicat, "unicat.png")
+
+#PQ Summary of Numerical variables - User Score, Critic Score
+
+score_subset <- subset(gamesub, select = -c(Other_Sales, Critic_Count, NA_Sales, EU_Sales, JP_Sales, User_Count))
+summary(score_subset)
+score_subset <- stargazer(as.data.frame(score_subset),
+          type = "html",
+          out = "numtable.html",
+          covariate.labels = c("Global Sales (mil)", "Critic Score"),
+          title = "Summary Statistics of Metacritic Scores")
+
+webshot("numtable.html", "numtable.png")
+
+```
+
+PQ Visualizations of relationship between predictors and Outcome :
+    Scatterplots (numerical variables)
+    Box Plots (categorical variables)
+
+```{r}
+#Scatterplot 1
+s1 <- gamesub %>% ggplot(aes(y = Global_Sales, x = Critic_Score)) +
+  geom_point() +
+  #lm specifies a straight line (line of best fit)
+  geom_smooth(method = "lm") +
+  theme(axis.title.x = element_blank()) +
+  labs(y = "Global Sales",
+       title = "Metacritic Score")
+
+#Box Plot Publisher
+b1 <- gamesub %>% ggplot(aes(x = Publisher, y = Global_Sales, fill = Publisher)) +
+  geom_boxplot() +
+  scale_x_discrete(labels = c("Activision" = "Act", "Electronic Arts" = "EA", "Konami Digital Entertainment" = "Konami", "Namco Bandai Games" = "Namco", "Ubisoft" = "Ubi")) + 
+  theme(axis.title.x = element_blank(), legend.position = "none") +
+  labs(y = "Global Sales",
+       title = "Publisher")
+
+#Box Plot Genre
+b2 <- gamesub %>% ggplot(aes(x=Genre, y = Global_Sales, fill=Genre)) +
+  geom_boxplot() +
+  theme(legend.position = "none", axis.title.x = element_blank()) + 
+  labs(y = "Global Sales",
+       title = "Genre")
+
+#Box Plot Rating
+b3 <- gamesub %>% ggplot(aes(x = Rating, y = Global_Sales, fill = Rating)) + 
+  geom_boxplot() + 
+  theme(legend.position = "none", axis.title.x = element_blank()) +
+  labs(y = "Global Sales",
+       x = "ESRB Rating",
+       title = "Rating")
+
+
+arr <- annotate_figure(ggarrange(s1, b2,b3,b1),
+                       top = "Figure 1 : Predictor Relationships with Global Sales")
+arr
+ggsave("arrange.png", plot = arr)
+ggsave("f1.png", plot = s1)
+ggsave("f2.png", plot = b1)
+ggsave("f3.png", plot = b2)
+ggsave("f4.png", plot = b3)
+
+```
+
+Model #1 :  SImple Linear Regressions using 1 predictor (Metacritic Score)
+```{r}
+mod1 <- lm(Global_Sales ~ Critic_Score, data = gamesub)
+
+# format model output as a dataframe 
+tidy_mod1 <- tidy(mod1)
+
+# update the "term" to PQ
+tidy_mod1$term <- c("Intercept", "Metacritic Score")
+
+#round estimate, std.error, and statistic to 2 or 3 decimal place
+tidy_mod1$estimate <- round(tidy_mod1$estimate, 3)
+tidy_mod1$std.error <- round(tidy_mod1$std.error, 3)
+tidy_mod1$statistic <- round(tidy_mod1$statistic, 2)
+
+tidy_mod1 %<>% mutate(p.value = ifelse(p.value < .001, #logical
+                                       "< 0.001",
+                                       format(p.value, scientific = FALSE, nsmall = 3, digits = 0)))
+
+#rename columns
+colnames(tidy_mod1) <- c("Predictor", "Estimator", "Std. Error", "t-statistic", "p-value")
+
+tname <- "Model One - Characteristics Associated with Global Videogame Sales"
+titlehead <- c(tname = 5)
+names(titlehead) <- tname
+
+footnote <- paste0("n = ",
+                   nrow(gamesub),
+                   ". r-squared = ",
+                   round(summary(mod1)$adj.r.squared,2),
+                   ", F(",
+                   summary(mod1)$fstatistic[2], ",", summary(mod1)$fstatistic[3],
+                   ") = ", round(summary(mod1)$fstatistic[1],2),
+                   ".")
+
+tidy_mod1 %>% kable(booktabs = T, align = "rcccc") %>%
+  kable_styling(full_width = FALSE) %>%
+  add_header_above(header = titlehead, align = "l",
+                   extra_css = "border-top: solid; border-bottom: double;") %>%
+                row_spec(0, extra_css = "border-bottom: solid;") %>% 
+                row_spec(nrow(tidy_mod1), extra_css = "border-bottom: solid;")  %>% 
+                kableExtra::footnote(general = c(footnote)) %>% 
+                save_kable("mod1.png")
+tidy_mod1
+```
+*P-value < alpha (.05) therefore we can reject null. The coefficient for metacritic score is sufficiently different from zero*
+
+*Coefficient : Increase of 1 Critic_score = +.0134 to global sales ; ~13,400 units.*
+
+*R-Squared : .1687 = Metacritic score explains 16.87% global sales variability around its mean*
+
+*F-Stat : P-value is less than alpha therefore we can say that the model falls within the acceptable ranges for prediciting global sales and r-squared is significantly different from zero*
+
+*Check Assumptions for Model 1*
+```{r}
+resfit1 <- data.frame(resid = mod1$residuals,
+                      fitted = mod1$fitted.values)
+m1rf <- resfit1 %>% ggplot(aes(x = fitted, y = resid)) +
+  geom_point() +
+  geom_smooth(color = "red", se = FALSE) +
+  labs(x = "Fitted Values",
+       y = "Residuals",
+       title = "Residuals vs. Fitted")
+
+m1nde <- resfit1 %>% ggplot(aes(sample = resid)) + #normally distributed errors
+  geom_qq_line(color = "red", size = 1) +
+  geom_qq(color = "black") +
+  labs(title = "QQ Plot of Residuals")
+
+m1io <- (ols_plot_resid_lev(mod1) + labs(title = "Outlier and Leverage Diagnostics")) # Influential Outliers
+
+m1ac <- resfit1 %>% ggplot(aes(s))
+
+m1ac <- annotate_figure(grid.arrange(arrangeGrob(m1nde, m1rf, ncol = 2),
+                                  m1io,
+                                  nrow = 2),
+                        top = textGrob("Assumption Checks for Model One"))
+
+m1check <- plot(mod1)
+par(mfrow = c(2,2))
+par(mar = rep(2,4))
+
+ggsave("m1rf.png", m1rf)
+ggsave("m1nde.png", m1nde)
+ggsave("m1io.png", m1io)
+ggsave("m1ac.png", plot = m1ac)
+ggsave("m1check.png", plot = m1check)
+```
+*There is a noticable curve in the red guide line. THis means that there is potentially a curviliear relationship.*
+*There is a noticable deviation from normality present in the upper tail that is concerning.*
+*Influential Outliers : 220, 57, 66*
+*Homoescedasticity : The breush-pagan test and the plot shows that this data violates the assumption of constant variance*
+
+*Refit Model 1*
+```{r}
+gamesub <- gamesub[c(-220, -57, -66), ]
+mod1b <- lm(Global_Sales ~ Critic_Score*Critic_Score, data = gamesub)
+plot(mod1b)
+plot(mod1)
+summary(mod1b)
+
+# format model output as a dataframe 
+tidy_mod1b <- tidy(mod1b)
+
+# update the "term" to PQ
+tidy_mod1b$term <- c("Intercept", "Metacritic Score")
+
+#round estimate, std.error, and statistic to 2 or 3 decimal place
+tidy_mod1b$estimate <- round(tidy_mod1b$estimate, 3)
+tidy_mod1b$std.error <- round(tidy_mod1b$std.error, 3)
+tidy_mod1b$statistic <- round(tidy_mod1b$statistic, 2)
+
+tidy_mod1b %<>% mutate(p.value = ifelse(p.value < .001, #logical
+                                       "< 0.001",
+                                       format(p.value, scientific = FALSE, nsmall = 3, digits = 0)))
+
+#rename columns
+colnames(tidy_mod1b) <- c("Predictor", "Estimator", "Std. Error", "t-statistic", "p-value")
+
+tname <- "Model 1B - Characteristics Associated with Global Videogame Sales"
+titlehead <- c(tname = 5)
+names(titlehead) <- tname
+
+footnote <- paste0("n = ",
+                   nrow(gamesub),
+                   ". r-squared = ",
+                   round(summary(mod1b)$adj.r.squared,2),
+                   ", F(",
+                   summary(mod1b)$fstatistic[2], ",", summary(mod1b)$fstatistic[3],
+                   ") = ", round(summary(mod1b)$fstatistic[1],2),
+                   ".")
+tidy_mod1b %>% kable(booktabs = T, align = "rcccc") %>%
+  kable_styling(full_width = FALSE) %>%
+  add_header_above(header = titlehead, align = "l",
+                   extra_css = "border-top: solid; border-bottom: double;") %>%
+                row_spec(0, extra_css = "border-bottom: solid;") %>% 
+                row_spec(nrow(tidy_mod1b), extra_css = "border-bottom: solid;")  %>% 
+                save_kable("mod1b.png")
+tidy_mod1b
+```
+
+```{r}
+resfit1 <- data.frame(resid = mod1$residuals,
+                      fitted = mod1$fitted.values)
+m1rf <- resfit1 %>% ggplot(aes(x = fitted, y = resid)) +
+  geom_point() +
+  geom_smooth(color = "red", se = FALSE) +
+  labs(x = "Fitted Values",
+       y = "Residuals",
+       title = "Residuals vs. Fitted")
+
+m1nde <- resfit1 %>% ggplot(aes(sample = resid)) + #normally distributed errors
+  geom_qq_line(color = "red", size = 1) +
+  geom_qq(color = "black") +
+  labs(title = "QQ Plot of Residuals")
+
+m1io <- (ols_plot_resid_lev(mod1) + labs(title = "Outlier and Leverage Diagnostics")) # Influential Outliers
+
+m1ac <- resfit1 %>% ggplot(aes(s))
+
+m1ac <- annotate_figure(grid.arrange(arrangeGrob(m1nde, m1rf, ncol = 2),
+                                  m1io,
+                                  nrow = 2),
+                        top = textGrob("Assumption Checks for Model One"))
+
+m1check <- plot(mod1)
+par(mfrow = c(2,2))
+par(mar = rep(2,4))
+
+ggsave("m1sl.png", plot = m1sl)
+ggsave("m1rf.png", m1rf)
+ggsave("m1nde.png", m1nde)
+ggsave("m1io.png", m1io)
+ggsave("m1ac.png", plot = m1ac)
+
+```
+
+Create Model 2 PQ Table
+```{r}
+mod2 <- lm(Global_Sales ~ Critic_Score + Genre + Rating + Publisher, data = gamesub)
+summary(mod2)
+
+# format model output as a dataframe 
+tidy_mod2 <- tidy(mod2)
+
+# update the "term" to PQ
+tidy_mod2$term <- c("Intercept", "Metacritic Score", "Genre - Misc", "Genre - RPG", "Genre - Sports", "Rating - T", "Rating - M", "Publisher - EA", "Publisher - Konami", "Publisher - Namco Bandai", "Publisher - Ubisoft")
+
+#round estimate, std.error, and statistic to 2 or 3 decimal place
+tidy_mod2$estimate <- round(tidy_mod2$estimate, 3)
+tidy_mod2$std.error <- round(tidy_mod2$std.error, 3)
+tidy_mod2$statistic <- round(tidy_mod2$statistic, 2)
+
+#convert p-values
+tidy_mod2 %<>% mutate(p.value = ifelse(p.value < .001, #logical
+                                       "< 0.001",
+                                       format(p.value, scientific = FALSE,
+                                              nsmall = 3, 
+                                              digits = 0)))
+
+#rename columns
+colnames(tidy_mod2) <- c("Predictor", "Estimator", "Std. Error", "t-statistic", "p-value")
+
+tname <- "Model 2 : Characteristics Associated with Global Videogame Sales"
+titlehead <- c(tname = 5)
+names(titlehead) <- tname
+
+#create footnote
+footnote <- paste0("n = ",
+                    nrow(gamesub),
+                    ". r-squared = ",
+                    round(summary(mod2)$adj.r.squared, 2),
+                    ", F(",
+                    summary(mod2)$fstatistic[2], ",", summary(mod2)$fstatistic[3],
+                    ") = ", round(summary(mod2)$fstatistic[1], 2),
+                    ".")
+ref_foot <- "Reference levels are Genre - Action, Rating - E, and Publisher - Activision"
+
+tidy_mod2 %>% kable(booktabs = T, align = "lcccc") %>% 
+                kable_styling(full_width = FALSE) %>% 
+                add_header_above(header = titlehead, align = "l",
+                     extra_css = "border-top: solid; border-bottom: double;") %>%
+                row_spec(0, extra_css = "border-bottom: solid;") %>% 
+                row_spec(nrow(tidy_mod2), extra_css = "border-bottom: solid;")  %>% 
+                kableExtra::footnote(general = c(ref_foot, footnote)) %>% 
+                save_kable("mod2.png")
+tidy_mod2
+
+aov_comp <- anova(mod2,mod1b)
+at <- flextable(aov_comp)
+at2 <- autofit(at)
+at3 <- add_header_lines(at2, "Table 1 : ANOVA Comparison Between Model 1 and Model 2")
+at4 <- align(at3, align = "center", part = "all")
+save_as_image(at4, path = "anova.png")
+
+```
+
+*Model Fitting : Model #2 - All Predictors*
+*Reference : Action, E, Activision*
+```{r}
+
+
+resfit2 <- data.frame(resid = mod2$residuals,
+                      fitted = mod2$fitted.values)
+
+m2rf <- resfit2 %>% ggplot(aes(x = fitted, y = resid)) +
+  geom_point() +
+  geom_smooth(color = "red", se = FALSE) +
+  labs(x = "Fitted Values",
+       y = "Residuals",
+       title = "Residuals vs. Fitted")
+
+m2nde <- resfit2 %>% ggplot(aes(sample = resid)) + #normally distributed errors
+  geom_qq_line(color = "red", size = 1) +
+  geom_qq(color = "black") +
+  labs(title = "QQ Plot of Residuals")
+
+m2io <- (ols_plot_resid_lev(mod2) + labs(title = "Outlier and Leverage Diagnostics")) # Influential Outliers
+
+m2ac <- resfit2 %>% ggplot(aes(s))
+
+m2ac <- annotate_figure(grid.arrange(arrangeGrob(m2nde, m2rf, ncol = 2),
+                                     m2io,
+                        top = textGrob("Assumption Checks for Model Two")))
+
+m2check <- plot(mod2)
+par(mfrow = c(2,2))
+par(mar = rep(2,4))
+
+ggsave("m2rf.png", m2rf)
+ggsave("m2nde.png", m2nde)
+ggsave("m2io.png", m2io)
+ggsave("m2ac.png", plot = m2ac)
+```
+The p-value is less than the alpha, therefore we reject null and the larger model is the better model for predicting global sales.
+
+Look at Model 2 Summary
+
+Check Model 2 Assumptions
+```{r}
+resfit2 <- data.frame(resid = mod2$residuals,
+                     fitted = mod2$fitted.values)
+#check for multicollinearity using Variance Inflaction Factor
+ols_vif_tol(mod2)
+
+#Errors are independent
+ind_error <- resfit2 %>% ggplot(aes(x = fitted, y = resid)) +
+                geom_point() + 
+                geom_smooth(color = "red", se = FALSE) +
+                labs(x = "Fitted Values",
+                     y = "Residuals",
+                     title = "Residuals vs. Fitted")
+ind_error
+bp <- ols_test_breusch_pagan(mod2)
+bp
+#normally distributed errors
+norm_error <- resfit2 %>% ggplot(aes(sample = resid)) +
+                  geom_qq_line(color = "red", size = 1)+
+                  geom_qq(color = "black") +
+                  labs(title = "QQ Plot of Residuals")
+norm_error
+
+#no influential outliers
+ols_plot_resid_lev(mod2) #outliers : 60,32,17,55,8,18,37
+
+
+#homoscedasticity
+jpeg("hom.jpeg", width = 729, height = 450)
+hom <- plot(mod2, which = c(1,3))
+dev.off()
+ggsave("hom.png", plot = hom)
+```
+*All of our values fall in the 1-4 range therefore we do not need to concern ourselves, there is no multicollinearity.*
+*There appears to be a curvilinear relationship between the predicted values and residuals.*
+*Residuals are not normally distributed*
+Model 3 - Dropped Genre
+```{r}
+#gamesub <- gamesub[c(-60,-32,-17,-55,-8,-18,-37)]
+mod3 <- lm(Global_Sales ~ (Critic_Score*Critic_Score) + Genre + Rating, data = gamesub)
+tidy_mod3 <- tidy(mod3)
+
+# update the "term" to PQ
+tidy_mod3$term <- c("Intercept", "Metacritic Score", "Genre - Misc", "Genre - RPG", "Genre - Sports", "Rating - T", "Rating - M")
+
+#round estimate, std.error, and statistic to 2 or 3 decimal place
+tidy_mod3$estimate <- round(tidy_mod3$estimate, 3)
+tidy_mod3$std.error <- round(tidy_mod3$std.error, 3)
+tidy_mod3$statistic <- round(tidy_mod3$statistic, 2)
+
+#convert p-values
+tidy_mod3 %<>% mutate(p.value = ifelse(p.value < .001, #logical
+                                       "< 0.001",
+                                       format(p.value, scientific = FALSE,
+                                              nsmall = 3, 
+                                              digits = 0)))
+
+#rename columns
+colnames(tidy_mod3) <- c("Predictor", "Estimator", "Std. Error", "t-statistic", "p-value")
+
+tname <- "Model 3 : Characteristics Associated with Global Videogame Sales"
+titlehead <- c(tname = 5)
+names(titlehead) <- tname
+
+#create footnote
+footnote <- paste0("n = ",
+                    nrow(gamesub),
+                    ". r-squared = ",
+                    round(summary(mod3)$adj.r.squared, 2),
+                    ", F(",
+                    summary(mod3)$fstatistic[2], ",", summary(mod3)$fstatistic[3],
+                    ") = ", round(summary(mod3)$fstatistic[1], 2),
+                    ".")
+ref_foot <- "Reference levels are Genre - Action, and Rating - E"
+
+tidy_mod3 %>% kable(booktabs = T, align = "lcccc") %>% 
+                kable_styling(full_width = FALSE) %>% 
+                add_header_above(header = titlehead, align = "l",
+                     extra_css = "border-top: solid; border-bottom: double;") %>%
+                row_spec(0, extra_css = "border-bottom: solid;") %>% 
+                row_spec(nrow(tidy_mod3), extra_css = "border-bottom: solid;")  %>% 
+                kableExtra::footnote(general = c(ref_foot, footnote)) %>% 
+                save_kable("mod3.png")
+tidy_mod3
+
+anov <- anova(mod2,mod3)
+ap <- flextable(anov)
+ap2 <- autofit(ap)
+ap3 <- add_header_lines(ap2, "Table 1 : ANOVA Comparison Between Model 1 and Model 2")
+ap4 <- align(ap3, align = "center", part = "all")
+save_as_image(ap4, path = "anova2.png")
+ap4
+plot(mod3)
+```
+Model 3 Assumptions
+```{r}
+resfit3 <- data.frame(resid = mod3$residuals,
+                      fitted = mod3$fitted.values)
+
+m3rf <- resfit3 %>% ggplot(aes(x = fitted, y = resid)) +
+  geom_point() +
+  geom_smooth(color = "red", se = FALSE) +
+  labs(x = "Fitted Values",
+       y = "Residuals",
+       title = "Residuals vs. Fitted")
+
+m3nde <- resfit3 %>% ggplot(aes(sample = resid)) + #normally distributed errors
+  geom_qq_line(color = "red", size = 1) +
+  geom_qq(color = "black") +
+  labs(title = "QQ Plot of Residuals")
+
+m3io <- (ols_plot_resid_lev(mod2) + labs(title = "Outlier and Leverage Diagnostics")) # Influential Outliers
+
+m3ac <- resfit3 %>% ggplot(aes(s))
+
+m3ac <- annotate_figure(grid.arrange(arrangeGrob(m3nde, m3rf, ncol = 2),
+                                     m3io,
+                        top = textGrob("Assumption Checks for Model Three")))
+
+m3check <- plot(mod3)
+par(mfrow = c(2,2))
+par(mar = rep(2,4))
+
+ggsave("m3rf.png", m3rf)
+ggsave("m3nde.png", m3nde)
+ggsave("m3io.png", m3io)
+ggsave("m3ac.png", plot = m3ac)
+```
+
+Saved data
+```{r}
+saveRDS(gamesub, "P4_data_Salcedo.rds")
+```
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
