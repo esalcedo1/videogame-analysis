@@ -1,0 +1,147 @@
+---
+title: "Project 1 : Descriptive Statistics and Visualization"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+#load packages
+library(tidyverse) #includes ggplot2
+library(descr) #used for two-way CrossTable()
+library(ggpubr) #contains line/dot plot for visualizing means 
+library(magrittr) # so you can use the assignment pipe %<>%
+library(dplyr) 
+library(flextable) ## generates PQ freq/summary tables in .doc or .pdf
+library(webshot) #required to save flextables and ggplot2 objects as imgs
+library(sjPlot) #PQ two-way/contingency table
+library(stargazer) # PQ numerical summary stats
+library(magick)
+library(ggthemes) # imports preset themes for use with ggplot2
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+Loading CSV file into RStudio
+```{r}
+mydata <- read.csv("vgame_sales.csv")
+glimpse(mydata)
+```
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+Look at descriptive statistics for your variables (PQ table or chart)
+Here you will clean the variables and prepare the data
+
+We will be using the following variables : Critic_Score, User_Score, NA/JP/EU Sales, Global Sales, Genre, Release Year, Rating 
+
+```{r}
+#data cleaning
+descr_data <- mydata
+
+#rename N/A levels to Unavailable
+levels(descr_data$Year_of_Release)[40] <- NA
+levels(descr_data$Genre)[1] <- "Unavailable"
+levels(descr_data$Rating)[1] <- "Unavailable"
+
+descr_data <- descr_data %>%
+#cleaned Genre
+  mutate(Genre = replace(Genre, Genre == '', NA),
+#clean User and Critic score 
+         Critic_Score = replace(Critic_Score, Critic_Score == '', NA), 
+         User_Score = replace(User_Score, User_Score == 'tbd', NA),
+#clean rating
+         Rating = replace(Rating, Rating == '', NA))
+descr_data$User_Score <- droplevels(descr_data$User_Score)
+descr_data$Year_of_Release <- droplevels(descr_data$Year_of_Release)
+descr_data$Platform <- droplevels(descr_data$Platform)
+descr_data <- descr_data %>% drop_na(Critic_Score, User_Score, Critic_Count, User_Count, Year_of_Release)
+table(descr_data$Platform)
+descr_data$Year_of_Release <- droplevels.factor(descr_data$Year_of_Release)
+
+```
+
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+Create a table that shows Genres on the vertical axis and average metacritic and average user scores on the horizontal 
+```{r}
+
+genre_table <-
+  descr_data %>% mutate(Genre = fct_infreq(Genre)) %>%
+  group_by(Genre) %>%
+  summarize('Number of Games' = n(),
+            'Average Meta Score' = format(round(mean(Critic_Score),2)),
+            'Average User Score' = format(round(mean(as.numeric(User_Score)),2))
+            )
+
+flex_genre <- flextable(genre_table)
+
+flex_genre2 <- add_header_lines(flex_genre, 'Table 1 : Average Metacritic/User Scores and Metacritic/User Count Based on Genre')
+flex_genre3 <- align(flex_genre2, align = 'center', part = 'all', j = 2:4)
+
+autofit(flex_genre3)
+
+## save_as_image(flex_genre4, path = "genre_table.png")
+
+```
+```{r}
+genre_sales <- 
+  descr_data %>% mutate(Genre = fct_infreq(Genre)) %>%
+  group_by(Genre) %>%
+  summarize(
+            "Global" = format(round(mean(Global_Sales*10),2)),
+            "North America" = format(round(mean(NA_Sales*10),2)),
+            "Japan" = format(round(mean(JP_Sales*10),2)),
+            "Europe" = format(round(mean(EU_Sales*10),2)),
+            "Other" = format(round(mean(Other_Sales*10),2)))
+genre_sales <- flextable(genre_sales)
+genre_sales2 <- autofit(genre_sales)
+genre_sales3 <- add_header_lines(genre_sales2, "Table 2 : Average Sales (in hundred thousands) of Games by Genre and Region")
+genre_sales3
+
+save_as_image(genre_sales3, path = "region_table1.png")
+```
+
+Rating and Global Sales
+
+```{r}
+mycopy <- mydata
+
+levels(mycopy$Rating)[1] <- "NRA"
+mycopy$Rating <- fct_recode(mycopy$Rating, E = 'E10+', E = 'EC', E = 'K-A', E ='E',  NRA = "RP", M ="AO")
+new_labels <- c("No Rating", "Mature", "Everyone", "Teen")
+levels(mycopy$Rating)
+levels(mycopy$Rating) <- new_labels
+rating_graph <- mycopy %>% mutate(Rating = fct_infreq(Rating)) %>%
+  ggplot(aes(y = NA_Sales, x = Rating, fill = Rating)) +
+    geom_boxplot(outlier.size = 0, outlier.shape = NA) +
+    coord_flip(ylim = c(0,1))+
+    theme(legend.position = "none", panel.grid.major.y = element_blank()) +
+    labs(x = "ESRB Rating", y = "NA Sales (in millions of units)", title = "Figure 1 : Rating vs North American Sales")
+
+rating_graph
+ggsave("ratinggraph.png")
+```
+
+
+This portion of code create the 'Metacritic Score vs. Global Sales' scatterplot graph 
+
+```{r}
+sales <- descr_data
+bold.11.text <- element_text(face='bold', size = 11)
+global_graph <- ggplot(sales, aes(x = Critic_Score, y = Global_Sales)) + 
+  geom_point(color = 'darkgreen') +  
+  
+  ylim(0, 40) +
+  geom_smooth(method = loess, se = FALSE)
+
+global_graph +
+  labs( x = "Metacritic Score", y = "Global Sales (in millions of units)",
+    title = "Figure 2 : Metacritic Score vs Global Sales") 
+
+ggsave("metaglobal.png")
+
+```
+
