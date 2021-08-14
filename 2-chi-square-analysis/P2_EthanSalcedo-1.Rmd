@@ -1,0 +1,175 @@
+---
+title: "P2_EthanSalcedo"
+output: html_document
+---
+
+```{r}
+#load packages
+library(tidyverse) # includes ggplot2
+library(magrittr) #allows for the assignment pipe %<>%
+library(kableExtra) 
+library(knitr) 
+library(dplyr) 
+library(DescTools) ## for phi and cramer's v functions
+library(pwr) ## for power function
+library(sjPlot) ## for tab_xtab
+library(webshot) ## to convert html objects to images
+```
+
+
+Here we are loading the csv videogame sales data
+```{r cars}
+mydata <- read.csv("vgame_sales.csv")
+glimpse(mydata)
+```
+
+
+Here we are doing the data cleaning.Remove any observations from the df that contain NA or a blank value for one or both of the variables (Genre & Rating).
+```{r}
+
+#One variable should be thought of as your x (independent) variable : Genre
+
+#One variable should be thought of as your y (dependent) variable : Rating
+
+#Both variables should be factors : COMPLETED
+
+#Make sure you have observations in every cell : COMPLETED
+
+#Review your two-way table if you have small cells turn them into bigger grou : COMPLETE
+#All ratings that denote it is suitable for Everyone have been combined into a single level
+
+mycopy <- mydata
+#Rename the blank factor level in each variable in order to use the factor_recode function
+levels(mycopy$Rating)[1] <- "DK/REF"
+levels(mycopy$Genre)[1] <- "DK/REF"
+
+#recode the factor levels "DK/REF" in each variable to NA values for removing and collapsing 
+mycopy$Rating <- recode_factor(mycopy$Rating, "DK/REF"=NA_character_)
+mycopy$Rating <- recode_factor(mycopy$Rating, "RP"=NA_character_)
+mycopy$Genre <- recode_factor(mycopy$Genre, "DK/REF"=NA_character_, "Role-Playing"= "RPG", "Simulation"= "Sim")
+mycopy$Genre <- fct_relevel(mycopy$Genre, sort)
+#recode factor levels for Rating so that all kids aged ratings are together (separately from the DK/REF recode for clarity)
+mycopy$Rating <- fct_collapse(mycopy$Rating,
+                              E = c("E", "E10+", "EC", "K-A"),
+                              M = c("M","AO"))
+mycopy$Rating <- fct_relevel(mycopy$Rating, "E","T","M")
+
+
+#remove the whole row if it is found to have a NA value for either Genre (x-value) or the Rating (y-value)
+mycopy <- mycopy[!is.na(mycopy$Genre),]
+mycopy <- mycopy[!is.na(mycopy$Rating),]
+
+table(mycopy$Genre, mycopy$Rating)
+
+#data is cleaned
+```
+
+Here we will write the code for the the Univariate Table
+```{r}
+#create two dataframes, each with 3 columns, Category, Frequency, and Percent.
+#create a df for the genre and the rating variable
+#creating the genre dataframe
+genre_df <- mycopy %>%
+  group_by(Genre) %>%
+  summarize(Frequency = n(), Percent = paste(format(round(n()/nrow(mycopy)*100,1)), "%"))
+names(genre_df)[1] <- "Category"
+genre_df
+
+#creating the Rating df
+rate_df <- mycopy %>%
+  group_by(Rating) %>%
+  summarize(Frequency = n(), Percent = paste(format(round(n()/nrow(mycopy)*100,1)), "%"))
+names(rate_df)[1] <- "Category"
+rate_df
+
+#combine the two dfs into one combined df using rbind(). the independent (Genre) variable should be stacked onto the depedent (Rating) variable
+
+df_rage <- rbind(genre_df, rate_df)
+
+tname <- "Figure 1 : Univariate Distribution of Genre and Rating"
+titlehead <- c(tname=3)
+names(titlehead) <- tname
+
+unicat <- df_rage %>% kable(booktabs = T, align = "lcc") %>%
+  kable_styling(full_width = FALSE) %>%
+  pack_rows("Genre", 1, 12) %>%
+  pack_rows("Rating", 13, 15) %>%
+  add_header_above(header = titlehead, align = "l",
+                   extra_css = "border-top: solid; border-bottom: double;") %>%
+    row_spec(0, extra_css = "border-bottom: solid;") %>% 
+    row_spec(nrow(df_rage), extra_css = "border-bottom: solid;") 
+unicat
+save_kable(unicat, "unicat_p2.png")
+```
+
+Code for creating the grouped bar chart
+```{r}
+
+genre_v_rating <- mycopy %>% group_by(Genre, Rating) %>% summarize(freq = n()) %>% ungroup() %>% group_by(Genre) %>% mutate(pct_within_genre = freq/sum(freq) *100)
+genre_v_rating
+
+#creating the bar chart
+rating_ggplot <- genre_v_rating %>%
+  ggplot(aes(fill = Rating, y = pct_within_genre, x = Genre)) +
+  geom_bar(position="stack", stat="identity") +
+  labs(x = "Genre",
+       y = "Percent",
+       title = "Figure 1 : Percent of Ratings by Genre") + 
+       theme(legend.position = "bottom",
+             legend.title = element_blank(),
+             title = element_text(size=10),
+             axis.title.x = element_text(size=10, color="black")) +
+  geom_text(aes(label=ifelse(pct_within_genre >= 4.0,paste0(round(pct_within_genre, 0), "%"), "")),
+            vjust=.5, color="white", size = 4, position=position_stack(vjust=0.5) 
+           ) + 
+  coord_flip() + 
+  labs(y ="", x="") 
+rating_ggplot
+ggsave("p2bar.png", plot = rating_ggplot)
+```
+
+Here we will run the Chi-Square Test for Independence
+```{r}
+vg_rage <- mycopy
+gen_tab <- table(mycopy$Genre, mycopy$Rating)
+chisq.test(gen_tab)
+```
+
+Here we will be calculating the effect size (Cramer's V as the table is greater than 2x2)
+```{r}
+CramerV(gen_tab)
+eff_size <- CramerV(gen_tab)
+
+#the value is .462544 meaning that there is a large association between genre and rating
+```
+
+Two-Way table of variables in PQ format with Chi-Square results, effect size, and p-value
+```{r}
+rg_df <- mycopy[complete.cases(mycopy),]
+
+two_tab <-tab_xtab(var.row = mycopy$Genre,
+                   var.col = mycopy$Rating,
+                   title = "Table 2: Chi-Square Test - Rating by Genre",
+                   var.labels = c("Genre", "Rating"),
+                   show.cell.prc = TRUE,
+                   show.row.prc = TRUE,
+                   show.summary = TRUE,
+                   emph.total = TRUE,
+                   emph.color = "#FFFFFF",
+                   statistics = "cramer",
+                   file = "boop.html")
+two_tab
+webshot("boop.html", "p2.png")
+```
+
+Power Analysis - Rejected Null | Determine the minimum sample size you could have to ensure power of 0.8
+```{r}
+pwr.chisq.test(w = eff_size, N = NULL, df = 22, sig.level = .5, power = .8)
+```
+The minimum sample size to achieve to ensure a power of 0.8 is 31.
+
+Exporting data to .RDS file
+```{r}
+saveRDS(mycopy, file = "cleaned_p2.rds")
+```
+
