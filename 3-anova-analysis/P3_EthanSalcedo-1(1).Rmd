@@ -1,0 +1,261 @@
+---
+title: "Project 3 : Two-sample t-tests and ANOVA models"
+author: Ethan Salcedo
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+library(sjPlot) # to create a PQ two-way table
+library(gridExtra)
+library(scales)
+library(ggplot2)
+library(tidyverse)
+library(magrittr)
+library(stargazer)
+library(webshot)
+library(DescTools) # contains levene's test function
+library(broom) # to tidy model output
+library(kableExtra) # for PQ format
+library(gt) # alternative option for PQ format
+library(pwr) # power analysis
+library(ggpubr) # contains line/dot plot for visualizing means
+```
+
+# Loading the data
+```{r cars}
+gamedata <- read.csv("vgame_sales.csv")
+summary(gamedata)
+```
+
+#Outcome variable : Global_Sales
+#Predictor Variable : Critic_Score & Publisher
+#Here is the code for cleaning the data and removing NA/Blank values  
+```{r}
+gamedata2 <- gamedata
+
+#Lump Publishers into 6 groups using factor lumping
+gamedata2$Publisher <- fct_explicit_na(gamedata2$Publisher) 
+gamedata2$Publisher <- fct_lump(gamedata2$Publisher, n = 5)
+
+#Lump Genres into the top 5 groups using factor lumping 
+gamedata2$Genre <- fct_explicit_na(gamedata2$Genre)
+gamedata2$Genre <- fct_lump(gamedata2$Genre, n = 4)
+
+
+#Get rid of the "Other" categories
+game_subset <- gamedata2 %>% filter(Publisher != "Other") %>% filter(Genre != "Other")
+game_subset$Genre <- droplevels(game_subset$Genre)
+game_subset$Publisher <- droplevels(game_subset$Publisher)
+
+#filtering results to remove extreme outliers
+game_subset %<>% filter(Global_Sales < 2.0)
+
+table(game_subset$Genre)
+table(game_subset$Publisher)
+
+
+```
+
+In the following chunk of code we create Table 1, Summary Stats for Global Sales
+#Table Creation
+```{r}
+#table of distribution for Genre and Publisher
+twt <- game_subset 
+tab_xtab(var.row = twt$Publisher,
+         var.col = twt$Genre,
+         title = "Table 1 : Distribution of Action/Sports Games Across Publishers",
+         show.cell.prc = TRUE,
+         show.summary = TRUE,
+         file = "2waysummary.html")
+webshot("2waysummary.html", "2way.png")
+
+#summary statistics for global sales
+sales_subset <- subset(game_subset, select = -c(Other_Sales, Critic_Score, Critic_Count, User_Count, NA_Sales, EU_Sales, JP_Sales))
+sales_subset <- 
+stargazer(as.data.frame(sales_subset),
+  type = "html",
+  out = "sum_stat.html",
+  title = "Summary Statistics of Global Sales"
+)
+
+webshot("sum_stat.html", "sum_stat.png")
+```
+
+#Univariate Tables of 3 Variables
+```{r}
+#Univariate Statistics for GENRE and PUBLISHER Variables
+pub_df <- game_subset %>%
+  group_by(Publisher) %>%
+  summarize(Frequency = n(), Percent = paste(format(round(n()/nrow(game_subset)*100,1)),"%"))
+names(pub_df)[1] <- "Category"
+
+gen_df <- game_subset %>%
+  group_by(Genre) %>%
+  summarize(Frequency = n(), Percent = paste(format(round(n()/nrow(game_subset)*100,1)),"%"))
+names(gen_df)[1] <- "Category"
+
+# combines the 2 newly created dfs into one using rbind()
+df_cat <- rbind(pub_df, gen_df)
+
+#use kable to create the table
+tname <- "Univariate Statistics for Categorical Variables"
+titlehead <- c(tname = 3)
+names(titlehead) <- tname
+
+unicat <- df_cat %>% kable(booktabs = T, aligh = "lcc") %>%
+  kable_styling(full_width = FALSE) %>%
+  pack_rows("Publisher", 1,5) %>%
+  pack_rows("Genre", 6, 7) %>%
+  add_header_above(header = titlehead, align = "l",
+                   extra_css = "border-top: solid; border-bottom: double;") %>%
+  row_spec(0, extra_css = "border-bottom: solid;") %>%
+  row_spec(nrow(df_cat), extra_css = "border-bottom: solid;")
+
+unicat
+save_kable(unicat, "unicat.jpeg")
+```
+
+#Visualize distribution of numerical variables
+```{r}
+#density plot
+
+den_pub <- game_subset %>%
+  ggplot(aes(x=Global_Sales, fill=Genre)) +
+    geom_density(alpha = .5) +
+    labs(fill = "Genre",
+         y = "Density",
+         x = "Global Sales (in millions)",
+         title = "Figure 1 : Density of Global Sales by Genre")
+
+box_pub <- game_subset %>%
+  ggplot(aes(x=Global_Sales, y = Publisher, fill=Publisher)) +
+  geom_boxplot() +
+  scale_x_continuous() +
+  theme(legend.position = 'none') +
+  labs(fill = "Publisher",
+       x = "Global Sales (in millions)",
+       y = "Publisher",
+       title = "Figure 2 : Distribution of Global sales by Publisher") 
+
+pot_inter <- game_subset %>% 
+  ggplot(aes(x=Genre, color = Publisher, group = Publisher, y = Global_Sales)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Figure 3 : Average Global Sales (in millions) by Genre and Publisher",
+       x = "",
+       y = "Global Sales (in millions)",
+       color = "Genre")
+
+den_pub
+box_pub
+pot_inter
+
+#save images of the graphs
+ggsave("density.png", plot=den_pub)
+ggsave("boxplot.png", plot=box_pub)
+ggsave("potinter.png", plot=pot_inter)
+```
+
+#Check all 6 assumptions
+  1.Dependent Variable is numeric (interval or ratio) | Global_Sales is numeric
+  2.No extreme outliers | Removed by filtering the global sale variable to 2.0 and below
+  3.Normality of RESIDUALS | There is extreme deviation from normality in the upper tail (smash hits)
+  4.Homogeneity of Variance | 
+  5.Independence of Observations (random selection, different samples) | Observations were not selected randomly but based on an existing database 
+  6.Group sample sizes are approx. equal | They are not
+#Really just check homogeneity of variance and normality of residuals (Levene's Test, QQ Plot)
+```{r}
+LeveneTest(Global_Sales ~ Genre, data = game_subset)
+LeveneTest(Global_Sales ~ Publisher, data = game_subset)
+LeveneTest(Global_Sales ~ Genre:Publisher, data = game_subset)
+
+genre_pub_aov <- aov(Global_Sales ~ Genre*Publisher, data = game_subset)
+summary(genre_pub_aov)
+resid_df <- data.frame(resid = genre_pub_aov$residuals)
+
+#create the QQ Plot
+resid_df %>% ggplot(aes(sample = resid)) +
+  geom_qq_line(color = "red") +
+  geom_qq(color = "black") +
+  labs(title = "Figure 4 : QQ Plot of Residuals")
+
+ggsave("qqplot.png", plot = last_plot())
+```
+
+
+#ANOVA Analysis
+```{r}
+
+global_aov <- aov(Global_Sales ~ Genre*Publisher, data = game_subset)
+summary(global_aov)
+
+df_aov2 <- broom ::tidy(global_aov)
+df_aov2$term <- c("Genre", "Publisher", "Interaction", "Residuals")
+df_aov2$sumsq <- comma(df_aov2$sumsq)
+df_aov2$meansq <- comma(df_aov2$meansq)
+df_aov2$statistic <- formatC(df_aov2$statistic, digits = 3, format = "f")
+df_aov2$p.value <- formatC(df_aov2$p.value, digits = 3, format = "f")
+df_aov2[4,5:6] <- ""
+df_aov2
+
+colnames(df_aov2) <- c("Source of Variation", "DF", "Sum of Squares", "Mean Squares", "F-ratio", "p-value")
+tname <- "ANOVA Model : The Impact of Genre and Publisher on Global Sales of Videogames"
+titlehead <- c(tname = 6)
+names(titlehead) <- tname
+
+df_aov2 %>% kable(booktabs = T, align = "lcrrcc") %>%
+  kable_styling(full_width = FALSE) %>%
+  add_header_above(header = titlehead, align = "l",
+                   extra_css = "border-top: solid; border-bottom: double;") %>%
+  row_spec(0, extra_css = "border-bottom: solid;") %>%
+  row_spec(nrow(df_aov2), extra_css = "border-bottom: solid;") %>%
+            save_kable("pqanova.png") ## save as image
+
+df_aov2
+  
+```
+
+#Bonferroni Adjustment or Tukey HSD
+```{r}
+TukeyHSD(global_aov)
+```
+
+#Standardized Effect Size - R-Squared
+#Unstandardized Effect Size
+    The difference in genre ~80k copies, fairly large in terms of units moved.
+    The difference in publishers ~110k copies, fairly large in terms of units moved.
+    The difference within the interactions varies to from 110k-30k. Therefore we look to standardized effect size
+#Cohen's f
+#Partial eta-squared values
+```{r}
+#Standardized Effect Size
+er_lm <- lm(Global_Sales ~ Genre*Publisher, data = game_subset)
+rsq <- summary(er_lm)$r.squared
+rsq # proportion
+percent(rsq, accuracy = .01) 
+
+#partial eta-squared values
+eta2 <- EtaSq(global_aov) 
+eta2
+
+#Cohen's f
+cohenf <- sqrt(rsq / (1-rsq))
+cohenf
+```
+
+Save the cleaned data
+```{r}
+saveRDS(game_subset, "P3_data_salcedo.rds")
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
