@@ -4,6 +4,13 @@ Over the last couple of years videogames have grown to become the largest indust
 
 ## Project Overview
 The objective of the Videogame Sales Analysis is to create insights as to what variables affect a videogames sales in order to help publishing companies when deciding what potential projects to prioritize for maximum returns. To this end, I have collected summary statistics, perfomed ANOVA analysis, linear regression and chi-square analysis in order t
+
+
+## Resources
+Data Source: https://www.kaggle.com/rush4ratio/video-game-sales-with-ratings
+
+Software: RStudio
+
 ## Defining Successful Videogames
 The first part of this is a report on the descriptive analysis conducted on the dataset. This was meant to visualize the data using tables and visualizations
 
