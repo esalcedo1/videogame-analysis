@@ -17,7 +17,9 @@ The first part of this is a report on the descriptive analysis conducted on the 
 ## Chi-Square Analysis
 The objective of this analysis was to prove that there exists a substantive difference between the genres on the ratings the games were given.
 
-![alt text](https://github.com/esalcedo1/videogame-analysis/blob/draft/2-chi-square-analysis/Picture1.png?raw=true =300x300)
+<img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/2-chi-square-analysis/Picture1.png?raw=true" width="200">
+
+![chi-square figure 1]( =300x300)
 
 The second part of this report follows a multivariate analysis to see if there is a relationship between the genre a videogame is given and the rating it receives. 
 
