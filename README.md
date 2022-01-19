@@ -15,13 +15,9 @@ Software: RStudio
 The first part of this is a report on the descriptive analysis conducted on the dataset. This was meant to visualize the data using tables and visualizations
 
 ## Chi-Square Analysis
-The objective of this analysis was to prove that there exists a substantive difference between the genres on the ratings the games were given.
-
+The objective of this analysis was to prove that there exists a substantive difference between the genres on the ratings the games were given. Before conducting the analysis itself we first visualize the distributions of ratings within each genre using a stacked bar chart.
 <img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/2-chi-square-analysis/Picture1.png?raw=true" width="300">
 
-![chi-square figure 1]( =300x300)
-
-The second part of this report follows a multivariate analysis to see if there is a relationship between the genre a videogame is given and the rating it receives. 
 
 ## ANOVA Analysis
 An ANOVA analysis assumes 5 things:
