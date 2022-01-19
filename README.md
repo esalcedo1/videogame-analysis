@@ -15,10 +15,18 @@ Software: RStudio
 The first part of this is a report on the descriptive analysis conducted on the dataset. This was meant to visualize the data using tables and visualizations
 
 ## Chi-Square Analysis
+A chi-square analysis serves to show that the distribution of one variable within another variable isn't due to chance through a table showing percentages within percentages
+
 The second part of this report follows a multivariate analysis to see if there is a relationship between the genre a videogame is given and the rating it receives. 
 
 ## ANOVA Analysis
+An ANOVA analysis assumes 5 things:
 
+1. Each group sample is drawn from a normally distributed population
+2. All populations have a common variance
+3. All sampels are drawn independently of each other
+4. within each sample, the observations are sampled randomly and independently of each other.
+5.  Factors effects are additive
 
 ## Linear Regression
 
