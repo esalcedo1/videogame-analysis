@@ -15,7 +15,7 @@ Software: RStudio
 The first part of this is a report on the descriptive analysis conducted on the dataset. This was meant to visualize the data using tables and visualizations
 
 ## Chi-Square Analysis
-A chi-square analysis serves to show that the distribution of one variable within another variable isn't due to chance through a table showing percentages within percentages
+The objective of this analysis was to prove that there exists a substantive difference between the genres on the ratings the games were given.
 
 The second part of this report follows a multivariate analysis to see if there is a relationship between the genre a videogame is given and the rating it receives. 
 
@@ -29,5 +29,6 @@ An ANOVA analysis assumes 5 things:
 5.  Factors effects are additive
 
 ## Linear Regression
+The point of linear regression is to measure the impact of predictors indvidually and if their impact is increased when combined
 
 
