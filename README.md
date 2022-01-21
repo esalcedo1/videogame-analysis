@@ -17,18 +17,22 @@ Software: RStudio
 The first part of this is a report on the descriptive analysis conducted on the dataset. This was meant to visualize the data using tables and visualizations
 
 ## Chi-Square Analysis
+
 The objective of this analysis was to prove that there exists a substantive difference between the genres on the ratings the games were given. Before conducting the analysis itself we first visualize the distributions of ratings within each genre using a stacked bar chart.
+(For an explanation of the variables used, please refer to the README file located in the chi-square folder.)
 
 <p align="center">
   <img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/2-chi-square-analysis/Picture1.png?raw=true" alt="stacked bar chart" width="400">
 </p>
 
-After this intial investigation a chi-square test was run resulting in the following data table:
+After this intial investigation, a chi-square test was run resulting in the following data table:
 
 <p align="center">
   <img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/2-chi-square-analysis/Figure2.png" alt="chi-square table">
 </p>
-  
+
+At an alpha of 0.05, we are able to reject the null hypothesis and conclude that there is both a statstical and substantive significant association between genre and the ESRB rating assigned to it.
+
 ## ANOVA Analysis
 An ANOVA analysis assumes 5 things:
 
