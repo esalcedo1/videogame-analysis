@@ -18,7 +18,7 @@ The first part of this is a report on the descriptive analysis conducted on the 
 The objective of this analysis was to prove that there exists a substantive difference between the genres on the ratings the games were given. Before conducting the analysis itself we first visualize the distributions of ratings within each genre using a stacked bar chart.
 
 <p align="center">
-<img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/2-chi-square-analysis/Picture1.png?raw=true" alt="chi-square chart" width="300">
+<img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/2-chi-square-analysis/Picture1.png?raw=true" alt="chi-square chart" width="400">
 </p>
 
 Running the Chi-Square test results in the following chart
