@@ -14,7 +14,8 @@ Data Source: https://www.kaggle.com/rush4ratio/video-game-sales-with-ratings
 Software: RStudio
 
 ## Defining Successful Videogames
-The first part of this is a report on the descriptive analysis conducted on the dataset. This was meant to visualize the data using tables and visualizations
+Videogame success can be measured in two ways: financial success and critical reception. Financial success obviously refers to a large number of units being sold and the product generating a large profit and can be examined using the global and regional sales variables in this dataset. Critical reception is a little more difficult to gauge but sites like Metacritic provide us with an aggregate score by both critics and average users. The following charts view these variables against genre and geographical region
+
 
 ## Chi-Square Analysis
 
