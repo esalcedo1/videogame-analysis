@@ -14,13 +14,14 @@ Data Source: https://www.kaggle.com/rush4ratio/video-game-sales-with-ratings
 Software: RStudio
 
 ## Defining Successful Videogames
-Videogame success can be measured in two ways: financial success and critical reception. Financial success obviously refers to a large number of units being sold and the product generating a large profit and can be examined using the global and regional sales variables in this dataset. Critical reception is a little more difficult to gauge but sites like Metacritic provide us with an aggregate score by both critics and average users. The following charts explore these variables against genre and geographical region
+Videogame success is measured in two ways: Critical reception and financial success. Financial success is self explanatory, videogames are sold and the more units sold the more revenue produced. Critical reception is harder to gauge but for that we have Metacritic. Metacritic aggregates the scores of critics and users and assigns games two scores, the "Meta Score" and "User Score". Our exploratory analysis on these variables gave us the tables below:
 
 <p align="center">
   <img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/1-defining-successful-videogames/genre-usercritic-score.png?raw=true" alt="Genre vs. User and Meta Score" height="250"/>
   <img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/1-defining-successful-videogames/genre-region-sales.png?raw=true" alt="Sales by Genre and Region" height="250"/>
 </p>
 
+From the first table we can see that on average RPGs, Sports, and Strategy games all get higher than average Meta scores while on the user-side RPGs score particularly high. The second table shows us that genres have different levels of popularity and reception in different regions of the world. In North America Shooter and Platforming games sell best while in Japan Puzzle and RPGs sell best. 
 
 
 ## Chi-Square Analysis
