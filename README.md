@@ -16,7 +16,7 @@ Software: RStudio
 ## Defining Successful Videogames
 Videogame success can be measured in two ways: financial success and critical reception. Financial success obviously refers to a large number of units being sold and the product generating a large profit and can be examined using the global and regional sales variables in this dataset. Critical reception is a little more difficult to gauge but sites like Metacritic provide us with an aggregate score by both critics and average users. The following charts explore these variables against genre and geographical region
 
-<p float="center">
+<p align="center">
   <img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/1-defining-successful-videogames/genre-usercritic-score.png?raw=true" alt="Genre vs. User and Meta Score" height="250"/>
   <img src="https://github.com/esalcedo1/videogame-analysis/blob/draft/1-defining-successful-videogames/genre-region-sales.png?raw=true" alt="Sales by Genre and Region" height="250"/>
 </p>
