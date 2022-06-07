@@ -1,11 +1,8 @@
 ---
 title: "Project 1 : Descriptive Statistics and Visualization"
 output: html_notebook
+author: Ethan Salcedo
 ---
-
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 ```{r}
 #load packages
@@ -22,15 +19,11 @@ library(magick)
 library(ggthemes) # imports preset themes for use with ggplot2
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-
 Loading CSV file into RStudio
 ```{r}
 mydata <- read.csv("vgame_sales.csv")
 glimpse(mydata)
 ```
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
 
 Look at descriptive statistics for your variables (PQ table or chart)
 Here you will clean the variables and prepare the data
@@ -63,8 +56,6 @@ descr_data$Year_of_Release <- droplevels.factor(descr_data$Year_of_Release)
 
 ```
 
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 Create a table that shows Genres on the vertical axis and average metacritic and average user scores on the horizontal 
 ```{r}
 
