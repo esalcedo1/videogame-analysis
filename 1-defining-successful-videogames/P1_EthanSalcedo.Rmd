@@ -39,13 +39,13 @@ levels(descr_data$Year_of_Release)[40] <- NA
 levels(descr_data$Genre)[1] <- "Unavailable"
 levels(descr_data$Rating)[1] <- "Unavailable"
 
-#cleaned Genre, Critic_Score, and User_Score
+#cleaned Genre, Critic_Score, User_Score, and Rating
 descr_data <- descr_data %>%
   mutate(Genre = replace(Genre, Genre == '', NA),
          Critic_Score = replace(Critic_Score, Critic_Score == '', NA), 
          User_Score = replace(User_Score, User_Score == 'tbd', NA),
-#clean rating
          Rating = replace(Rating, Rating == '', NA))
+         
 descr_data$User_Score <- droplevels(descr_data$User_Score)
 descr_data$Year_of_Release <- droplevels(descr_data$Year_of_Release)
 descr_data$Platform <- droplevels(descr_data$Platform)
