@@ -10,6 +10,6 @@ Videogames use genre to quickly describe the type of gameplay features a player 
 
 To begin with, we looked at the distribution of videogames across genres with average meta and user scores.
 
-<p align="center"
+<p align="center">
   <img src='https://github.com/esalcedo1/videogame-analysis/blob/main/1-defining-successful-videogames/assets/genre_table.jpeg' width = 500>
-/>
+</p>
