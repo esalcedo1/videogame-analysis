@@ -9,6 +9,4 @@ Genre is a categorical variable that is given to a game to briefly describe what
 Videogames use genre to quickly describe the type of gameplay features a player can expect to experience while playing it. For example, genres such as "Shooter" are used to describe videogames built around weapon-based gameplay such as the extremely popular "Call of Duty" series while games built around sport simulation features like EA's "FIFA" and "Madden NFL" games.
 
 To begin with, we looked at the distribution of videogames across genres with average meta and user scores.
-
-![Table 1: Average Metacritic/User Scores](/1-defining-successful-videogames/assets/genre_table.jpeg | width = 300)
-<img src='https://github.com/esalcedo1/videogame-analysis/blob/main/1-defining-successful-videogames/assets/genre_table.jpeg' width = 250 />
+<img src='https://github.com/esalcedo1/videogame-analysis/blob/main/1-defining-successful-videogames/assets/genre_table.jpeg' width = 500/>
