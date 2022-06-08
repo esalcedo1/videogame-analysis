@@ -15,13 +15,12 @@ library(flextable) ## generates PQ freq/summary tables in .doc or .pdf
 library(webshot) #required to save flextables and ggplot2 objects as imgs
 library(sjPlot) #PQ two-way/contingency table
 library(stargazer) # PQ numerical summary stats
-library(magick)
 library(ggthemes) # imports preset themes for use with ggplot2
 ```
 
 Loading CSV file into RStudio
 ```{r}
-mydata <- read.csv("vgame_sales.csv")
+mydata <- read.csv(file="/Users/salcetoes/Desktop/RStudio/videogame-analysis-main/vgame_sales.csv", header=TRUE, na.strings = (""))
 glimpse(mydata)
 ```
 
@@ -31,28 +30,31 @@ Here you will clean the variables and prepare the data
 We will be using the following variables : Critic_Score, User_Score, NA/JP/EU Sales, Global Sales, Genre, Release Year, Rating 
 
 ```{r}
-#data cleaning
-descr_data <- mydata
+descr_data <- as.data.frame(mydata)
 
-#rename N/A levels to Unavailable
-levels(descr_data$Year_of_Release)[40] <- NA
-levels(descr_data$Genre)[1] <- "Unavailable"
-levels(descr_data$Rating)[1] <- "Unavailable"
-
-#cleaned Genre, Critic_Score, User_Score, and Rating
+# mutate before factoring
 descr_data <- descr_data %>%
-  mutate(Genre = replace(Genre, Genre == '', NA),
-         Critic_Score = replace(Critic_Score, Critic_Score == '', NA), 
-         User_Score = replace(User_Score, User_Score == 'tbd', NA),
-         Rating = replace(Rating, Rating == '', NA))
-         
-descr_data$User_Score <- droplevels(descr_data$User_Score)
+  mutate(User_Score = replace(User_Score, User_Score == 'tbd', NA),
+         Year_of_Release = replace(Year_of_Release, Year_of_Release == "N/A", NA))
+
+# convert metrics into numeric format
+descr_data$User_Score <- as.numeric(descr_data$User_Score)
+descr_data$User_Count <-as.numeric(descr_data$User_Count)
+descr_data$Critic_Count <- as.numeric(descr_data$Critic_Count)
+descr_data$Critic_Score <- as.numeric(descr_data$Critic_Score)
+
+# automated character columns -> factor columns
+# subsets the columns in descr_data that is.character returns TRUE
+# lapply() applies the as.factor function to the subset of descr_data with only chr columns
+descr_data[sapply(descr_data, is.character)] <- lapply(descr_data[sapply(descr_data, is.character)], as.factor)
+
+glimpse(descr_data)
+
+# cleaned Genre, Critic_Score, User_Score, and Rating
+descr_data <- descr_data %>% drop_na(Critic_Score, User_Score, Critic_Count, User_Count)
 descr_data$Year_of_Release <- droplevels(descr_data$Year_of_Release)
 descr_data$Platform <- droplevels(descr_data$Platform)
-descr_data <- descr_data %>% drop_na(Critic_Score, User_Score, Critic_Count, User_Count, Year_of_Release)
 table(descr_data$Platform)
-descr_data$Year_of_Release <- droplevels.factor(descr_data$Year_of_Release)
-
 ```
 
 Create a table that shows Genres on the vertical axis and average metacritic and average user scores on the horizontal 
@@ -97,14 +99,16 @@ save_as_image(genre_sales3, path = "region_table1.png")
 Rating and Global Sales
 
 ```{r}
-mycopy <- mydata
+mycopy <- descr_data
 
-levels(mycopy$Rating)[1] <- "NRA"
+# combine similar ratings into single category
 mycopy$Rating <- fct_recode(mycopy$Rating, E = 'E10+', E = 'EC', E = 'K-A', E ='E',  NRA = "RP", M ="AO")
-new_labels <- c("No Rating", "Mature", "Everyone", "Teen")
+
 levels(mycopy$Rating)
-levels(mycopy$Rating) <- new_labels
-rating_graph <- mycopy %>% mutate(Rating = fct_infreq(Rating)) %>%
+levels(mycopy$Rating) <- c("Mature", "Everyone", "NRA", "Teen")
+
+rating_graph <- mycopy %>% filter(Rating == 'Mature' | Rating == 'Everyone' | Rating == 'Teen') %>%
+  mutate(Rating = fct_infreq(Rating)) %>%
   ggplot(aes(y = NA_Sales, x = Rating, fill = Rating)) +
     geom_boxplot(outlier.size = 0, outlier.shape = NA) +
     coord_flip(ylim = c(0,1))+
@@ -115,7 +119,7 @@ rating_graph
 ggsave("ratinggraph.png")
 ```
 
-
+-
 This portion of code create the 'Metacritic Score vs. Global Sales' scatterplot graph 
 
 ```{r}
