@@ -8,10 +8,13 @@ Genre is a categorical variable that is given to a game to briefly describe what
 ## Genre Defines Videogames
 Videogames use genre to quickly describe the type of gameplay features a player can expect to experience while playing it. For example, genres such as "Shooter" are used to describe videogames built around weapon-based gameplay such as the extremely popular "Call of Duty" series while games built around sport simulation features like EA's "FIFA" and "Madden NFL" games.
 
-To begin with, we looked at the distribution of videogames across genres with average meta and user scores.
+Here we created a table to visualize the differences in scores and number of reviewers by genre. 
 
 <p align="center">
   <img src='https://github.com/esalcedo1/videogame-analysis/blob/main/1-defining-successful-videogames/assets/genre_table.jpeg' alt="Average Critic/User Scores and Critic/User Count by Genre" width = 500>
 </p>
 
-From this table we can see that 
+From the table we note that Action games are the most common having 72% more games than the 2nd place Sports genre. In the average critic score the range of is from 66.52-74.1 with an average score overall of 70.22. Additionally, the average user score ranged from 6.85-7.62 with an average overall score of 7.21. 
+
+Moving on to critic and user count we find that average critic counts range from 23.16-37.04 and 33.64-387.71 for users.
+
